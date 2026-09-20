@@ -250,7 +250,7 @@ export default function ShutterHero({ videoSrc, webmSrc, poster, children }: Shu
               // playsInline is mandatory: iOS otherwise forces fullscreen.
               muted
               playsInline
-              preload="auto"
+              preload="metadata"
               poster={poster}
             >
               {webmSrc && <source src={webmSrc} type="video/webm" />}
