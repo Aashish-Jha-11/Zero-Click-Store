@@ -8,7 +8,7 @@ import Image from 'next/image';
 import { Session } from '@supabase/supabase-js';
 
 import { supabase, ensureProfile } from '@/lib/supabase';
-import { runAgent, type AgentResponse } from '@/lib/api';
+import { runAgent, warmBackend, type AgentResponse } from '@/lib/api';
 import { useSpeech } from '@/lib/speech';
 import { formatCurrency } from '@/lib/utils';
 import ShutterHero from '@/components/ShutterHero';
@@ -34,6 +34,13 @@ export default function HomePage() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AgentResponse | null>(null);
+
+  // The backend sleeps on a free tier and takes ~50s to wake. Ping it while the
+  // visitor is still reading the hero, so the first order never waits on a cold
+  // start. Fire-and-forget: a failure here must not affect the page.
+  useEffect(() => {
+    warmBackend();
+  }, []);
 
   useEffect(() => {
     // Safety net: if Supabase's redirect allow-list rejects our redirectTo it
