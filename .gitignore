@@ -44,3 +44,7 @@ docs/
 
 # Misc
 *.pem
+
+# agent scratch
+CLAUDE.md
+**/CLAUDE.md
