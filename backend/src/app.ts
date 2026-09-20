@@ -12,7 +12,9 @@ const app = express();
 
 // Middleware
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:3000', 'https://dukaanpilot.vercel.app']
+}));
 app.use(express.json());
 
 // Health check
