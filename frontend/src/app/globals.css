@@ -1,86 +1,188 @@
 @import "tailwindcss";
 
+/* ============================================================
+   DukaanPilot design system
+
+   Use scene: a shopkeeper on a phone, in a bright shop, glancing
+   between a customer and the screen. That drives every decision
+   here — warm neutrals (not cold slate), high contrast, tabular
+   figures, large targets, one elevation system.
+   ============================================================ */
+
 @theme {
-  /* Brand Colors - Professional Indian market palette */
-  --color-brand-primary: oklch(0.65 0.19 35);
-  --color-brand-primary-dark: oklch(0.55 0.19 35);
-  --color-brand-primary-light: oklch(0.95 0.05 35);
+  /* ---- Brand: saffron. Warm, Indian, not the default orange-red. ---- */
+  --color-brand-50:  oklch(0.975 0.020 70);
+  --color-brand-100: oklch(0.945 0.045 68);
+  --color-brand-200: oklch(0.890 0.080 66);
+  --color-brand-300: oklch(0.820 0.120 62);
+  --color-brand-400: oklch(0.755 0.155 58);
+  --color-brand-500: oklch(0.690 0.175 52);
+  --color-brand-600: oklch(0.610 0.170 47);
+  --color-brand-700: oklch(0.510 0.145 43);
+  --color-brand-800: oklch(0.410 0.110 42);
+  --color-brand-900: oklch(0.320 0.080 44);
 
-  --color-brand-secondary: oklch(0.60 0.15 145);
-  --color-brand-secondary-dark: oklch(0.50 0.15 145);
-  --color-brand-secondary-light: oklch(0.95 0.05 145);
+  /* ---- Ink: warm-tinted neutrals. Every step is contrast-checked
+          against --color-surface-raised (white).                   ---- */
+  --color-ink-900: oklch(0.215 0.014 66);  /* 15.8:1 — headings     */
+  --color-ink-800: oklch(0.310 0.016 66);  /* 11.1:1 — body strong  */
+  --color-ink-700: oklch(0.420 0.018 66);  /*  7.4:1 — body         */
+  --color-ink-600: oklch(0.510 0.018 66);  /*  5.4:1 — secondary    */
+  --color-ink-500: oklch(0.580 0.016 66);  /*  4.6:1 — muted, small */
+  --color-ink-400: oklch(0.700 0.012 68);  /* decorative only       */
+  --color-ink-300: oklch(0.820 0.009 68);
+  --color-ink-200: oklch(0.900 0.007 70);
+  --color-ink-100: oklch(0.948 0.006 70);
 
-  /* Semantic colors */
-  --color-success: oklch(0.60 0.15 145);
-  --color-warning: oklch(0.75 0.15 65);
-  --color-error: oklch(0.65 0.20 25);
-  --color-info: oklch(0.65 0.15 250);
+  /* ---- Surfaces ---- */
+  --color-surface:        oklch(0.982 0.005 72);
+  --color-surface-raised: oklch(1 0 0);
+  --color-surface-sunken: oklch(0.962 0.008 72);
+  --color-surface-inverse: oklch(0.225 0.016 66);
+  --color-line:        oklch(0.912 0.008 70);
+  --color-line-strong: oklch(0.858 0.010 70);
 
-  /* Radius */
-  --radius-sm: 0.5rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.5rem;
-  --radius-2xl: 2rem;
+  /* ---- Semantic. Meanings are stable across the whole app:
+          success = the DB write landed
+          warn    = needs the shopkeeper's attention
+          danger  = the operation was refused
+          info    = the agent is reasoning                    ---- */
+  --color-success-50:  oklch(0.960 0.030 158);
+  --color-success-200: oklch(0.868 0.075 158);
+  --color-success-500: oklch(0.585 0.130 156);
+  --color-success-700: oklch(0.455 0.105 156);
 
-  /* Shadows */
-  --shadow-smooth: 0 2px 8px -2px rgb(0 0 0 / 0.08), 0 4px 16px -4px rgb(0 0 0 / 0.04);
-  --shadow-smooth-lg: 0 4px 16px -4px rgb(0 0 0 / 0.08), 0 8px 32px -8px rgb(0 0 0 / 0.06);
+  --color-warn-50:  oklch(0.968 0.032 82);
+  --color-warn-200: oklch(0.888 0.085 80);
+  --color-warn-500: oklch(0.735 0.150 76);
+  --color-warn-700: oklch(0.520 0.115 62);
+
+  --color-danger-50:  oklch(0.962 0.024 25);
+  --color-danger-200: oklch(0.884 0.065 25);
+  --color-danger-500: oklch(0.585 0.190 27);
+  --color-danger-700: oklch(0.455 0.155 27);
+
+  --color-info-50:  oklch(0.962 0.024 265);
+  --color-info-200: oklch(0.888 0.060 265);
+  --color-info-500: oklch(0.585 0.145 265);
+  --color-info-700: oklch(0.455 0.125 265);
+
+  /* ---- Radii: cards 14px. Pills are for small controls only. ---- */
+  --radius-control: 0.625rem;
+  --radius-card:    0.875rem;
+  --radius-panel:   1.125rem;
+
+  /* ---- Elevation. Declare it ONCE per element — shadow OR border,
+          never both (that is the ghost card).                   ---- */
+  --shadow-e1: 0 1px 2px oklch(0.30 0.03 66 / 0.05),
+               0 2px 6px oklch(0.30 0.03 66 / 0.05);
+  --shadow-e2: 0 2px 4px oklch(0.30 0.03 66 / 0.06),
+               0 8px 20px oklch(0.30 0.03 66 / 0.07);
+  --shadow-e3: 0 4px 8px oklch(0.30 0.03 66 / 0.07),
+               0 16px 40px oklch(0.30 0.03 66 / 0.10);
+  --shadow-brand: 0 2px 6px oklch(0.61 0.17 47 / 0.22),
+                  0 10px 28px oklch(0.61 0.17 47 / 0.20);
+
+  /* ---- Motion: exponential ease-out from an already-visible default ---- */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+    /* Themed caret — a browser surface that ships with no design system. */
+    caret-color: var(--color-brand-600);
+  }
+
   body {
-    @apply bg-slate-50 text-slate-900;
+    background-color: var(--color-surface);
+    color: var(--color-ink-800);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
 
-  html {
-    scroll-behavior: smooth;
+  /* Display face carries the wordmark and the big figures. */
+  h1, h2, h3, .font-display {
+    font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+    letter-spacing: -0.028em;
+    text-wrap: balance;
+  }
+
+  /* Every number in this product is compared against another number —
+     stock levels, prices, order totals. Proportional figures make that
+     harder than it needs to be. */
+  .tnum,
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1, 'zero' 1;
   }
 
   *:focus-visible {
-    outline: 2px solid oklch(0.65 0.19 35);
+    outline: 2px solid var(--color-brand-600);
     outline-offset: 2px;
+    border-radius: 4px;
   }
 
   ::selection {
-    background-color: oklch(0.65 0.19 35 / 0.2);
-    color: oklch(0.20 0.01 250);
+    background-color: oklch(0.690 0.175 52 / 0.24);
+    color: var(--color-ink-900);
+  }
+
+  /* Scrollbars belong to the design system too. */
+  @supports (scrollbar-color: auto) {
+    * { scrollbar-color: var(--color-ink-300) transparent; scrollbar-width: thin; }
+  }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-ink-300);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background-color: var(--color-ink-400); background-clip: content-box; }
+
+  /* Prose inside agent replies — the model returns plain text with • bullets. */
+  .agent-copy { white-space: pre-wrap; text-wrap: pretty; }
+}
+
+@layer components {
+  /* One card, one elevation. Reach for these instead of re-deriving
+     border+shadow combinations per component. */
+  .card {
+    background-color: var(--color-surface-raised);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-e1);
+  }
+
+  .card-panel {
+    background-color: var(--color-surface-raised);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-e2);
+  }
+
+  /* Flat surfaces use a line instead — never a line AND a shadow. */
+  .card-flat {
+    background-color: var(--color-surface-raised);
+    border-radius: var(--radius-card);
+    border: 1px solid var(--color-line);
   }
 }
 
 @layer utilities {
-  .gradient-primary {
-    background: linear-gradient(135deg, oklch(0.65 0.19 35), oklch(0.55 0.19 35));
-  }
+  .shadow-e1 { box-shadow: var(--shadow-e1); }
+  .shadow-e2 { box-shadow: var(--shadow-e2); }
+  .shadow-e3 { box-shadow: var(--shadow-e3); }
+  .shadow-brand { box-shadow: var(--shadow-brand); }
+}
 
-  .gradient-surface {
-    background: linear-gradient(to bottom right,
-      oklch(0.98 0.01 250),
-      oklch(0.95 0.05 35),
-      oklch(0.95 0.05 145)
-    );
-  }
-
-  .glass {
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-  }
-
-  .text-gradient-primary {
-    @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, oklch(0.65 0.19 35), oklch(0.60 0.15 145));
-  }
-
-  .shadow-smooth {
-    box-shadow: var(--shadow-smooth);
-  }
-
-  .shadow-smooth-lg {
-    box-shadow: var(--shadow-smooth-lg);
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

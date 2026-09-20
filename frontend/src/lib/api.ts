@@ -12,10 +12,29 @@ export interface AgentResponse {
   events: Array<{
     type: string;
     message: string;
-    metadata?: Record<string, unknown>;
+    metadata?: {
+      tool?: string;
+      input?: Record<string, unknown>;
+      result?: Record<string, unknown>;
+      [k: string]: unknown;
+    };
   }>;
   error?: string;
   requestId: string;
+  /** 'llm' = model-planned, 'fallback' = deterministic parser. */
+  mode?: 'llm' | 'fallback';
+  provider?: string;
+  model?: string;
+  lowStockAlerts?: LowStockAlert[];
+}
+
+export interface LowStockAlert {
+  id: string;
+  name: string;
+  sku: string | null;
+  stock_quantity: number;
+  unit: string | null;
+  severity: 'out_of_stock' | 'critical' | 'low';
 }
 
 export async function runAgent(message: string): Promise<AgentResponse> {
@@ -42,6 +61,16 @@ export async function getOrders() {
 export async function getInventory() {
   const res = await fetch(`${API_BASE}/api/inventory`);
   if (!res.ok) throw new Error('Failed to fetch inventory');
+  return res.json();
+}
+
+export async function getLowStockAlerts(): Promise<{
+  success: boolean;
+  threshold: number;
+  alerts: LowStockAlert[];
+}> {
+  const res = await fetch(`${API_BASE}/api/inventory/alerts`);
+  if (!res.ok) throw new Error('Failed to fetch alerts');
   return res.json();
 }
 

@@ -2,153 +2,164 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Package, TrendingDown, AlertTriangle, ArrowLeft, Boxes, Loader2 } from 'lucide-react';
-import Link from 'next/link';
-import { getInventory } from '@/lib/api';
+import { Loader2, PackageX, BellRing } from 'lucide-react';
+import { getInventory, getLowStockAlerts, type LowStockAlert } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
+import AppHeader, { AuthRequired } from '@/components/AppHeader';
 
-const springyTransition = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
+interface Item {
+  id: string;
+  name: string;
+  category: string | null;
+  stock_quantity: number;
+  unit: string | null;
+}
+
+/** Stock shown against the reorder line, so "is this low?" needs no arithmetic. */
+function StockBar({ qty, threshold }: { qty: number; threshold: number }) {
+  const ceiling = Math.max(threshold * 4, 20);
+  const pct = Math.min(100, (qty / ceiling) * 100);
+  const tone =
+    qty === 0 ? 'bg-danger-500' : qty <= threshold ? 'bg-warn-500' : 'bg-success-500';
+
+  return (
+    <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-ink-100">
+      <div className={`h-full rounded-full ${tone}`} style={{ width: `${Math.max(pct, 3)}%` }} />
+      <div
+        className="absolute inset-y-0 w-px bg-ink-400"
+        style={{ left: `${(threshold / ceiling) * 100}%` }}
+        title={`Reorder line: ${threshold}`}
+      />
+    </div>
+  );
+}
 
 export default function InventoryPage() {
-  const [inventory, setInventory] = useState<any[]>([]);
+  const [inventory, setInventory] = useState<Item[]>([]);
+  const [alerts, setAlerts] = useState<LowStockAlert[]>([]);
+  const [threshold, setThreshold] = useState(5);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [hasAuth, setHasAuth] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setHasAuth(!!data.session));
 
-    async function load() {
+    (async () => {
       try {
-        const data = await getInventory();
-        setInventory(data.inventory || []);
-      } catch (error) {
-        console.error('Failed to load inventory:', error);
+        // The reorder line comes from the backend — hardcoding it here is how
+        // this page previously disagreed with the agent's own alerts.
+        const [inv, al] = await Promise.all([getInventory(), getLowStockAlerts()]);
+        setInventory(inv.inventory ?? []);
+        setAlerts(al.alerts ?? []);
+        setThreshold(al.threshold ?? 5);
+      } catch (e: any) {
+        setError(e?.message ?? 'Could not load inventory');
       } finally {
         setLoading(false);
       }
-    }
-    load();
+    })();
   }, []);
 
-  const lowStock = inventory.filter((item) => item.stock_quantity < 10);
-  const totalStock = inventory.reduce((sum, item) => sum + item.stock_quantity, 0);
-
-  if (!hasAuth && !loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-[2rem] border border-slate-200 text-center max-w-sm">
-          <h2 className="text-xl font-bold mb-4">Authentication Required</h2>
-          <Link href="/" className="text-orange-500 font-semibold hover:underline">Return to Login</Link>
-        </div>
-      </div>
-    );
-  }
+  if (!hasAuth && !loading) return <AuthRequired />;
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
-      <header className="bg-white/80 backdrop-blur-xl border-b border-slate-200/60 sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-6 lg:px-8">
-          <div className="flex items-center gap-6 h-[72px]">
-            <Link
-              href="/"
-              className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5 text-slate-700" />
-            </Link>
-            <div>
-              <h1 className="text-lg font-bold text-slate-900 tracking-tight">Inventory</h1>
-              <p className="text-[11px] text-slate-500 font-semibold tracking-wider uppercase">Stock Status</p>
-            </div>
+    <div className="min-h-screen bg-surface">
+      <AppHeader
+        title="Inventory"
+        subtitle={loading ? 'Loading…' : `${inventory.length} active items · reorder line ${threshold}`}
+      />
+
+      <main className="mx-auto max-w-3xl px-5 py-8 pb-24 sm:px-6">
+        {error && (
+          <div className="mb-4 rounded-card bg-danger-50 px-5 py-4 text-[0.9375rem] font-medium text-danger-700">
+            {error}
           </div>
-        </div>
-      </header>
+        )}
 
-      <main className="max-w-4xl mx-auto px-6 lg:px-8 py-10 pb-20">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        {alerts.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={springyTransition}
-            className="bg-white rounded-[2rem] border border-slate-200/60 p-8 shadow-sm flex flex-col justify-between h-40"
+            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+            className="mb-6 rounded-card bg-warn-50 px-5 py-4"
           >
-            <Boxes className="w-6 h-6 text-indigo-500 mb-4" />
-            <div>
-              <p className="text-[2.5rem] leading-none font-black text-slate-900 mb-1">{inventory.length}</p>
-              <p className="text-sm font-semibold text-slate-400 uppercase tracking-widest">Active Items</p>
+            <div className="flex items-center gap-2.5">
+              <BellRing className="h-[18px] w-[18px] shrink-0 text-warn-700" strokeWidth={2.2} />
+              <p className="text-[0.9375rem] font-semibold text-warn-700">
+                {alerts.length} {alerts.length === 1 ? 'item needs' : 'items need'} restocking
+              </p>
             </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ ...springyTransition, delay: 0.1 }}
-            className={`bg-white rounded-[2rem] border p-8 shadow-sm flex flex-col justify-between h-40 ${lowStock.length > 0 ? 'border-orange-200' : 'border-slate-200/60'}`}
-          >
-            <TrendingDown className={`w-6 h-6 mb-4 ${lowStock.length > 0 ? 'text-orange-500' : 'text-slate-400'}`} />
-            <div>
-              <p className="text-[2.5rem] leading-none font-black text-slate-900 mb-1">{lowStock.length}</p>
-              <p className="text-sm font-semibold text-slate-400 uppercase tracking-widest">Low Stock Items</p>
-            </div>
-          </motion.div>
-        </div>
-
-        {lowStock.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-orange-50 rounded-[1.5rem] border border-orange-100 p-6 mb-8 flex items-start gap-4"
-          >
-            <AlertTriangle className="w-6 h-6 text-orange-600 flex-shrink-0" />
-            <div>
-              <h3 className="font-bold text-orange-900 mb-1">Attention Required</h3>
-              <p className="text-orange-800 text-sm font-medium">You have {lowStock.length} items running low. Restocking is advised.</p>
-            </div>
+            <p className="tnum mt-1.5 pl-[28px] text-[0.875rem] leading-relaxed text-warn-700/85">
+              {alerts.map((a) => `${a.name} (${a.stock_quantity})`).join(' · ')}
+            </p>
           </motion.div>
         )}
 
-        <div className="bg-white rounded-[2rem] border border-slate-200/60 overflow-hidden shadow-sm">
-          {loading ? (
-             <div className="py-20 text-center">
-             <Loader2 className="w-8 h-8 text-slate-300 animate-spin mx-auto" />
-           </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-100">
-                    <th className="px-6 py-5 text-left font-bold text-slate-400 uppercase tracking-widest text-xs">Product</th>
-                    <th className="px-6 py-5 text-left font-bold text-slate-400 uppercase tracking-widest text-xs">Category</th>
-                    <th className="px-6 py-5 text-right font-bold text-slate-400 uppercase tracking-widest text-xs">Stock Level</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {inventory.map((item, idx) => (
-                    <motion.tr
-                      key={item.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.02 }}
-                      className="hover:bg-slate-50/50 transition-colors"
+        {loading ? (
+          <div className="grid place-items-center rounded-card bg-surface-raised py-24 shadow-e1">
+            <Loader2 className="h-7 w-7 animate-spin text-ink-400" />
+          </div>
+        ) : inventory.length === 0 ? (
+          <div className="rounded-card bg-surface-raised px-6 py-20 text-center shadow-e1">
+            <PackageX className="mx-auto mb-4 h-8 w-8 text-ink-400" />
+            <p className="font-display text-[1.125rem] font-bold text-ink-900">No products yet</p>
+            <p className="mx-auto mt-2 max-w-[40ch] text-[0.9375rem] leading-relaxed text-ink-600">
+              If you expected stock here, the backend is probably unreachable. Check
+              that it is running and that{' '}
+              <code className="rounded bg-surface-sunken px-1.5 py-0.5 font-mono text-[0.8125rem]">
+                NEXT_PUBLIC_API_BASE_URL
+              </code>{' '}
+              points at it.
+            </p>
+          </div>
+        ) : (
+          <ul className="overflow-hidden rounded-card bg-surface-raised shadow-e1">
+            {inventory.map((item, idx) => {
+              const low = item.stock_quantity <= threshold;
+              return (
+                <motion.li
+                  key={item.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: Math.min(idx * 0.02, 0.4), duration: 0.3 }}
+                  className="flex items-center gap-4 px-5 py-4 not-last:border-b not-last:border-line"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[0.9375rem] font-semibold leading-tight text-ink-900">
+                      {item.name}
+                    </p>
+                    <p className="mt-0.5 truncate text-[0.8125rem] leading-tight text-ink-500">
+                      {item.category ?? '—'}
+                    </p>
+                    <div className="mt-2 max-w-[13rem]">
+                      <StockBar qty={item.stock_quantity} threshold={threshold} />
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 text-right">
+                    <p
+                      data-numeric
+                      className={`tnum font-display text-[1.375rem] font-bold leading-none ${
+                        item.stock_quantity === 0
+                          ? 'text-danger-700'
+                          : low
+                            ? 'text-warn-700'
+                            : 'text-ink-900'
+                      }`}
                     >
-                      <td className="px-6 py-5 font-bold text-slate-900">{item.name}</td>
-                      <td className="px-6 py-5 font-semibold text-slate-500">{item.category}</td>
-                      <td className="px-6 py-5 text-right">
-                        <div className="flex items-center justify-end gap-3">
-                          <span className={`font-black text-lg ${item.stock_quantity < 10 ? 'text-orange-500' : 'text-slate-900'}`}>
-                            {item.stock_quantity}
-                          </span>
-                          {item.stock_quantity < 10 && (
-                            <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-                          )}
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                      {item.stock_quantity}
+                    </p>
+                    <p className="mt-1 text-[0.75rem] leading-none text-ink-500">
+                      {item.unit ?? 'unit'}
+                      {item.stock_quantity === 1 ? '' : 's'}
+                    </p>
+                  </div>
+                </motion.li>
+              );
+            })}
+          </ul>
+        )}
       </main>
     </div>
   );
