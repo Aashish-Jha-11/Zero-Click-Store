@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import {
   motion,
   useScroll,
@@ -192,6 +192,7 @@ export default function ShutterHero({ videoSrc, webmSrc, poster, children }: Shu
   const videoRef = useRef<HTMLVideoElement>(null);
   const reduced = useReducedMotion();
   const [videoReady, setVideoReady] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
 
   const { scrollYProgress } = useScroll({
     target: ref,
@@ -206,21 +207,80 @@ export default function ShutterHero({ videoSrc, webmSrc, poster, children }: Shu
   const hintOpacity = useTransform(scrollYProgress, [0, 0.12], [1, 0]);
 
   // Video mode: scrub currentTime against scroll instead of playing.
-  useMotionValueEvent(scrollYProgress, 'change', (p) => {
+  // Seeks are coalesced into one per animation frame — setting currentTime on
+  // every scroll event makes the browser drop seeks and the shutter stutters.
+  const pendingRef = useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  const seekTo = useCallback((progress: number) => {
     const v = videoRef.current;
-    if (!v || !videoReady || reduced) return;
+    if (!v) return;
     const d = v.duration;
     if (!Number.isFinite(d) || d === 0) return;
-    v.currentTime = Math.min(d, Math.max(0, p * d));
+
+    pendingRef.current = Math.min(d, Math.max(0, progress * d));
+    if (rafRef.current !== null) return;
+
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      const target = pendingRef.current;
+      const vid = videoRef.current;
+      if (vid && target !== null) {
+        try {
+          vid.currentTime = target;
+        } catch {
+          /* seeking before the range is buffered — the next frame retries */
+        }
+      }
+    });
+  }, []);
+
+  useMotionValueEvent(scrollYProgress, 'change', (p) => {
+    if (!videoReady || reduced) return;
+    seekTo(p);
   });
 
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
-    const onReady = () => setVideoReady(true);
-    v.addEventListener('loadedmetadata', onReady);
-    return () => v.removeEventListener('loadedmetadata', onReady);
-  }, [videoSrc]);
+
+    const markReady = () => {
+      setVideoReady(true);
+      // Sync to wherever the page already is, so a reload mid-page is correct.
+      seekTo(scrollYProgress.get());
+    };
+
+    // Metadata is often already present by the time this effect runs (cache,
+    // fast network). Waiting only on the event means readiness never fires and
+    // scrubbing silently never starts — leaving just the CSS camera push.
+    if (v.readyState >= 1) markReady();
+
+    v.addEventListener('loadedmetadata', markReady);
+    v.addEventListener('loadeddata', markReady);
+    v.addEventListener('canplay', markReady);
+    // Safari sometimes needs an explicit nudge to fetch with preload=auto.
+    if (v.readyState === 0) v.load();
+
+    const onError = () => setVideoFailed(true);
+    v.addEventListener('error', onError);
+
+    // If it is still not scrubbable after a few seconds, show the CSS shutter.
+    // A frozen first frame reads as a broken page.
+    const watchdog = setTimeout(() => {
+      if ((videoRef.current?.readyState ?? 0) < 1) setVideoFailed(true);
+    }, 6000);
+
+    return () => {
+      v.removeEventListener('loadedmetadata', markReady);
+      v.removeEventListener('loadeddata', markReady);
+      v.removeEventListener('canplay', markReady);
+      v.removeEventListener('error', onError);
+      clearTimeout(watchdog);
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [videoSrc, seekTo, scrollYProgress]);
+
+  const useVideo = Boolean(videoSrc) && !videoFailed;
 
   /* Reduced motion: one static frame, no pinning, no scrubbing. */
   if (reduced) {
@@ -243,7 +303,7 @@ export default function ShutterHero({ videoSrc, webmSrc, poster, children }: Shu
       >
         {/* camera rig — everything inside pushes in together */}
         <motion.div className="absolute inset-0 will-change-transform" style={{ scale: cameraScale }}>
-          {videoSrc ? (
+          {useVideo ? (
             <video
               ref={videoRef}
               className="absolute inset-0 h-full w-full object-cover"
