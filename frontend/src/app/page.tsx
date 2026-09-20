@@ -174,7 +174,7 @@ export default function HomePage() {
   if (!session && !guest) {
     return (
       <div className="min-h-screen bg-surface">
-        <ShutterHero videoSrc="/hero-shutter.mp4" poster="/hero-poster.jpg" />
+        <ShutterHero frameCount={72} poster="/hero-poster.jpg" />
 
         <div className="relative z-10 -mt-[38vh] flex justify-center px-5 pb-28">
           <motion.div

@@ -9,6 +9,7 @@ import {
   type MotionValue,
 } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
+import FrameScrubber from './FrameScrubber';
 
 /* ────────────────────────────────────────────────────────────────
    Scroll timeline. Tweak these and everything else follows.
@@ -21,12 +22,13 @@ const HANDOFF: [number, number] = [0.86, 1.0]; // dissolve to the app
 const PIN_HEIGHT = '260vh';
 
 interface ShutterHeroProps {
-  /** Supply an mp4 to swap the CSS shutter for a scrubbed video. */
-  videoSrc?: string;
-  webmSrc?: string;
+  /** Number of frames in the scrubbed sequence (public/frames/fNNN.jpg). */
+  frameCount?: number;
   poster?: string;
   children?: React.ReactNode;
 }
+
+const frameUrl = (i: number) => `/frames/f${String(i).padStart(3, '0')}.jpg`;
 
 /* ── The kirana interior, built entirely in CSS ───────────────── */
 
@@ -186,9 +188,11 @@ function Shutter({ scaleY }: { scaleY: MotionValue<number> }) {
 
 /* ── Hero ──────────────────────────────────────────────────────── */
 
-export default function ShutterHero({ videoSrc, webmSrc, poster, children }: ShutterHeroProps) {
+export default function ShutterHero({ frameCount, poster, children }: ShutterHeroProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  // Read by the scrubber every animation frame — a ref, not state, so scroll
+  // never triggers a React render.
+  const progressRef = useRef(0);
   const reduced = useReducedMotion();
   const [videoReady, setVideoReady] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
@@ -215,24 +219,8 @@ export default function ShutterHero({ videoSrc, webmSrc, poster, children }: Shu
       const rect = section.getBoundingClientRect();
       const scrollable = rect.height - window.innerHeight;
       const p = scrollable > 0 ? Math.min(1, Math.max(0, -rect.top / scrollable)) : 0;
-
+      progressRef.current = p;
       progress.set(p);
-
-      const v = videoRef.current;
-      // readyState >= 1 means metadata (and therefore duration) is available.
-      if (v && v.readyState >= 1) {
-        const d = v.duration;
-        if (Number.isFinite(d) && d > 0) {
-          const t = Math.min(d - 0.001, Math.max(0, p * d));
-          if (Math.abs(v.currentTime - t) > 0.008) {
-            try {
-              v.currentTime = t;
-            } catch {
-              /* range not buffered yet; the next frame retries */
-            }
-          }
-        }
-      }
     };
 
     const schedule = () => {
@@ -241,45 +229,17 @@ export default function ShutterHero({ videoSrc, webmSrc, poster, children }: Shu
 
     window.addEventListener('scroll', schedule, { passive: true });
     window.addEventListener('resize', schedule);
-
-    const v = videoRef.current;
-    const onReady = () => {
-      setVideoReady(true);
-      schedule();
-    };
-    const onError = () => setVideoFailed(true);
-
-    if (v) {
-      if (v.readyState >= 1) onReady();
-      v.addEventListener('loadedmetadata', onReady);
-      v.addEventListener('loadeddata', onReady);
-      v.addEventListener('canplay', onReady);
-      v.addEventListener('error', onError);
-      if (v.readyState === 0) v.load();
-    }
-
-    // A frozen first frame reads as a broken page — fall back to the CSS shutter.
-    const watchdog = window.setTimeout(() => {
-      if ((videoRef.current?.readyState ?? 0) < 1) setVideoFailed(true);
-    }, 7000);
-
     apply();
 
     return () => {
       window.removeEventListener('scroll', schedule);
       window.removeEventListener('resize', schedule);
-      if (v) {
-        v.removeEventListener('loadedmetadata', onReady);
-        v.removeEventListener('loadeddata', onReady);
-        v.removeEventListener('canplay', onReady);
-        v.removeEventListener('error', onError);
-      }
-      window.clearTimeout(watchdog);
       if (raf !== null) cancelAnimationFrame(raf);
     };
-  }, [progress, reduced, videoSrc]);
+  }, [progress, reduced]);
 
-  const useVideo = Boolean(videoSrc) && !videoFailed;
+  const useFrames = Boolean(frameCount) && !videoFailed;
+
 
   /* Reduced motion: one static frame, no pinning, no scrubbing. */
   if (reduced) {
@@ -302,19 +262,14 @@ export default function ShutterHero({ videoSrc, webmSrc, poster, children }: Shu
       >
         {/* camera rig — everything inside pushes in together */}
         <motion.div className="absolute inset-0 will-change-transform" style={{ scale: cameraScale }}>
-          {useVideo ? (
-            <video
-              ref={videoRef}
-              className="absolute inset-0 h-full w-full object-cover"
-              // playsInline is mandatory: iOS otherwise forces fullscreen.
-              muted
-              playsInline
-              preload="auto"
-              poster={poster}
-            >
-              {webmSrc && <source src={webmSrc} type="video/webm" />}
-              <source src={videoSrc} type="video/mp4" />
-            </video>
+          {useFrames ? (
+            <FrameScrubber
+              count={frameCount!}
+              src={frameUrl}
+              progressRef={progressRef}
+              onReady={() => setVideoReady(true)}
+              className="absolute inset-0 h-full w-full"
+            />
           ) : (
             <>
               <motion.div className="absolute inset-0" style={{ opacity: interiorOpacity }}>
