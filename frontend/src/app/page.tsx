@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Loader2, LogOut, ArrowRight, Sparkles } from 'lucide-react';
+import { Send, Loader2, LogOut, ArrowRight, Sparkles, Mic, Square } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Session } from '@supabase/supabase-js';
 
 import { supabase, ensureProfile } from '@/lib/supabase';
 import { runAgent, type AgentResponse } from '@/lib/api';
+import { useSpeech } from '@/lib/speech';
 import { formatCurrency } from '@/lib/utils';
 import ShutterHero from '@/components/ShutterHero';
 import ExecutionTimeline from '@/components/ExecutionTimeline';
@@ -123,6 +124,8 @@ export default function HomePage() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };
+
+  const speech = useSpeech((text) => setMessage(text));
 
   const submit = async (text: string) => {
     if (!text.trim() || loading) return;
@@ -326,39 +329,102 @@ export default function HomePage() {
       </main>
 
       {/* Input dock — the primary control, always within thumb reach. */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-4 pb-5 pt-10 bg-gradient-to-t from-surface via-surface/90 to-transparent">
-        <motion.form
-          initial={{ y: 60, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={spring}
-          onSubmit={(e) => {
-            e.preventDefault();
-            submit(message);
-          }}
-          className="pointer-events-auto mx-auto flex max-w-3xl items-center gap-2 rounded-panel bg-surface-raised p-2 shadow-e3"
-        >
-          <input
-            type="text"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="2 Maggi, 1 Amul milk aur bread de do…"
-            disabled={loading}
-            aria-label="Customer request"
-            className="min-w-0 flex-1 bg-transparent px-4 py-3 text-[1rem] font-medium text-ink-900 placeholder:text-ink-400 focus:outline-none disabled:opacity-50"
-          />
-          <button
-            type="submit"
-            disabled={loading || !message.trim()}
-            aria-label="Send request"
-            className="grid h-12 w-12 shrink-0 place-items-center rounded-control bg-brand-500 text-white shadow-brand transition-all hover:bg-brand-600 active:scale-95 disabled:bg-ink-200 disabled:text-ink-400 disabled:shadow-none disabled:active:scale-100"
-          >
-            {loading ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <Send className="h-[18px] w-[18px]" strokeWidth={2.2} />
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 bg-gradient-to-t from-surface via-surface/90 to-transparent px-4 pb-5 pt-10">
+        <div className="mx-auto max-w-3xl">
+          <AnimatePresence>
+            {speech.error && (
+              <motion.p
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 6 }}
+                className="pointer-events-auto mb-2 rounded-control bg-danger-50 px-4 py-2 text-[0.8125rem] font-medium text-danger-700"
+              >
+                {speech.error}
+              </motion.p>
             )}
-          </button>
-        </motion.form>
+            {speech.listening && (
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 6 }}
+                className="pointer-events-auto mb-2 flex items-center gap-2.5 rounded-control bg-surface-inverse px-4 py-2.5"
+              >
+                <span className="relative flex h-2.5 w-2.5 shrink-0">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-danger-500 opacity-75" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-danger-500" />
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[0.875rem] text-white">
+                  {speech.interim || 'Listening… bolhiye'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => speech.setLang(speech.lang === 'en-IN' ? 'hi-IN' : 'en-IN')}
+                  className="shrink-0 rounded-full bg-white/15 px-2.5 py-1 text-[0.6875rem] font-bold uppercase tracking-wider text-white transition-colors hover:bg-white/25"
+                >
+                  {speech.lang === 'en-IN' ? 'Hinglish' : 'हिंदी'}
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <motion.form
+            initial={{ y: 60, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={spring}
+            onSubmit={(e) => {
+              e.preventDefault();
+              submit(message);
+            }}
+            className="pointer-events-auto flex items-center gap-2 rounded-panel bg-surface-raised p-2 shadow-e3"
+          >
+            <input
+              type="text"
+              value={speech.listening && speech.interim ? speech.interim : message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="2 Maggi, 1 Amul milk aur bread de do…"
+              disabled={loading}
+              aria-label="Customer request"
+              className="min-w-0 flex-1 bg-transparent px-4 py-3 text-[1rem] font-medium text-ink-900 placeholder:text-ink-400 focus:outline-none disabled:opacity-50"
+            />
+
+            {speech.supported && (
+              <button
+                type="button"
+                onClick={speech.toggle}
+                disabled={loading}
+                aria-label={speech.listening ? 'Stop recording' : 'Speak the order'}
+                aria-pressed={speech.listening}
+                className={`relative grid h-12 w-12 shrink-0 place-items-center rounded-control transition-all active:scale-95 disabled:opacity-40 ${
+                  speech.listening
+                    ? 'bg-danger-500 text-white'
+                    : 'bg-surface-sunken text-ink-700 hover:bg-ink-200 hover:text-ink-900'
+                }`}
+              >
+                {speech.listening && (
+                  <span className="absolute inset-0 animate-ping rounded-control bg-danger-500 opacity-40" />
+                )}
+                {speech.listening ? (
+                  <Square className="relative h-4 w-4 fill-current" strokeWidth={0} />
+                ) : (
+                  <Mic className="relative h-[18px] w-[18px]" strokeWidth={2.2} />
+                )}
+              </button>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading || !message.trim()}
+              aria-label="Send request"
+              className="grid h-12 w-12 shrink-0 place-items-center rounded-control bg-brand-500 text-white shadow-brand transition-all hover:bg-brand-600 active:scale-95 disabled:bg-ink-200 disabled:text-ink-400 disabled:shadow-none disabled:active:scale-100"
+            >
+              {loading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Send className="h-[18px] w-[18px]" strokeWidth={2.2} />
+              )}
+            </button>
+          </motion.form>
+        </div>
       </div>
     </div>
   );
