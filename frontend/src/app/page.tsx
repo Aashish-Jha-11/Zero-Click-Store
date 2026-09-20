@@ -11,14 +11,14 @@ import { Session } from '@supabase/supabase-js';
 
 // Premium spring Physics (Emil Kowalski style)
 const springyTransition = {
-  type: 'spring',
+  type: 'spring' as const,
   stiffness: 400,
   damping: 30,
   mass: 0.8
 };
 
 const subtleTransition = {
-  type: 'spring',
+  type: 'spring' as const,
   stiffness: 300,
   damping: 40
 };
@@ -332,7 +332,7 @@ export default function HomePage() {
               type="text"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder='Type "2 Maggi, 1 Amul milk aur bread de do..."'
+              placeholder='Type "2 Maggi, 1 Amul milk aur bread de do"...'
               disabled={loading}
               className="flex-1 px-6 py-4 bg-transparent border-none text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-0 disabled:opacity-50 text-[16px] font-medium"
             />

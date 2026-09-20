@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ShoppingCart, ArrowLeft, Package, Clock, CheckCircle } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, Package, Clock, CheckCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { getOrders } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
 // Emil Kowalski spring properties
-const springyTransition = { type: 'spring', stiffness: 400, damping: 30, mass: 0.8 };
+const springyTransition = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);

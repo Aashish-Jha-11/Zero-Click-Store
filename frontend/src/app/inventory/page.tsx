@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Package, TrendingDown, AlertTriangle, ArrowLeft, Boxes } from 'lucide-react';
+import { Package, TrendingDown, AlertTriangle, ArrowLeft, Boxes, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { getInventory } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 
-const springyTransition = { type: 'spring', stiffness: 400, damping: 30, mass: 0.8 };
+const springyTransition = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
 
 export default function InventoryPage() {
   const [inventory, setInventory] = useState<any[]>([]);
