@@ -79,3 +79,57 @@ export async function getActivity() {
   if (!res.ok) throw new Error('Failed to fetch activity');
   return res.json();
 }
+
+export interface Product {
+  id: string;
+  name: string;
+  category: string | null;
+  price: number;
+  stock_quantity: number;
+  unit: string | null;
+  sku?: string | null;
+}
+
+export interface ProductInput {
+  name: string;
+  price: number;
+  stock_quantity: number;
+  category?: string | null;
+  unit?: string | null;
+}
+
+async function json<T>(res: Response): Promise<T> {
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || body?.success === false) {
+    throw new Error(body?.error || `Request failed (${res.status})`);
+  }
+  return body as T;
+}
+
+export async function createProduct(input: ProductInput) {
+  const res = await fetch(`${API_BASE}/api/inventory`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return json<{ success: true; product: Product }>(res);
+}
+
+export async function updateProduct(id: string, patch: Partial<ProductInput>) {
+  const res = await fetch(`${API_BASE}/api/inventory/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+  return json<{ success: true; product: Product }>(res);
+}
+
+export async function deleteProduct(id: string) {
+  const res = await fetch(`${API_BASE}/api/inventory/${id}`, { method: 'DELETE' });
+  return json<{ success: true; product: { id: string; name: string } }>(res);
+}
+
+/** Wake a sleeping free-tier backend while the visitor reads the page. */
+export function warmBackend() {
+  fetch(`${API_BASE}/api/health`, { cache: 'no-store' }).catch(() => {});
+}
