@@ -20,7 +20,7 @@ export async function checkInventory(productId: string, requestedQty: number) {
 export async function getInventory(storeId: string) {
   const { data, error } = await supabase
     .from('products')
-    .select('id, name, stock_quantity, unit, category')
+    .select('id, name, stock_quantity, unit, category, price, sku')
     .eq('store_id', storeId)
     .eq('active', true)
     .order('stock_quantity', { ascending: true });

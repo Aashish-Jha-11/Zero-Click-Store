@@ -324,11 +324,11 @@ export default function InventoryPage() {
                         <button
                           onClick={() => {
                             setEditingId(item.id);
-                            setEditPrice(String(item.price));
+                            setEditPrice(String(item.price ?? ''));
                           }}
                           className="tnum inline-flex items-center gap-1.5 text-[0.8125rem] text-ink-500 transition-colors hover:text-ink-900"
                         >
-                          {formatCurrency(Number(item.price))} · {item.category ?? '—'}
+                          {Number.isFinite(Number(item.price)) ? formatCurrency(Number(item.price)) : '—'} · {item.category ?? '—'}
                           <Pencil className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
                         </button>
                       )}
