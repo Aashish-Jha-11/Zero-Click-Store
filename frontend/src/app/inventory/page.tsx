@@ -5,20 +5,18 @@ import { motion } from 'framer-motion';
 import { Package, TrendingDown, AlertTriangle, ArrowLeft, Boxes } from 'lucide-react';
 import Link from 'next/link';
 import { getInventory } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 
-interface InventoryItem {
-  id: string;
-  name: string;
-  category: string;
-  stock_quantity: number;
-  unit: string;
-}
+const springyTransition = { type: 'spring', stiffness: 400, damping: 30, mass: 0.8 };
 
 export default function InventoryPage() {
-  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [inventory, setInventory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasAuth, setHasAuth] = useState(false);
 
   useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setHasAuth(!!data.session));
+
     async function load() {
       try {
         const data = await getInventory();
@@ -35,112 +33,114 @@ export default function InventoryPage() {
   const lowStock = inventory.filter((item) => item.stock_quantity < 10);
   const totalStock = inventory.reduce((sum, item) => sum + item.stock_quantity, 0);
 
+  if (!hasAuth && !loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-[2rem] border border-slate-200 text-center max-w-sm">
+          <h2 className="text-xl font-bold mb-4">Authentication Required</h2>
+          <Link href="/" className="text-orange-500 font-semibold hover:underline">Return to Login</Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen gradient-surface">
-      <header className="glass sticky top-0 z-50 border-b border-slate-200/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-4 h-16">
-            <Link href="/" className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-              <ArrowLeft className="w-5 h-5 text-slate-600" />
+    <div className="min-h-screen bg-slate-50 font-sans">
+      <header className="bg-white/80 backdrop-blur-xl border-b border-slate-200/60 sticky top-0 z-50">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8">
+          <div className="flex items-center gap-6 h-[72px]">
+            <Link
+              href="/"
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5 text-slate-700" />
             </Link>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-smooth">
-                <Boxes className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-slate-900">Inventory</h1>
-                <p className="text-xs text-slate-600">Stock Management</p>
-              </div>
+            <div>
+              <h1 className="text-lg font-bold text-slate-900 tracking-tight">Inventory</h1>
+              <p className="text-[11px] text-slate-500 font-semibold tracking-wider uppercase">Stock Status</p>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-smooth">
-            <div className="flex items-start justify-between mb-3">
-              <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center">
-                <Package className="w-6 h-6 text-indigo-600" />
-              </div>
+      <main className="max-w-4xl mx-auto px-6 lg:px-8 py-10 pb-20">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={springyTransition}
+            className="bg-white rounded-[2rem] border border-slate-200/60 p-8 shadow-sm flex flex-col justify-between h-40"
+          >
+            <Boxes className="w-6 h-6 text-indigo-500 mb-4" />
+            <div>
+              <p className="text-[2.5rem] leading-none font-black text-slate-900 mb-1">{inventory.length}</p>
+              <p className="text-sm font-semibold text-slate-400 uppercase tracking-widest">Active Items</p>
             </div>
-            <p className="text-3xl font-bold text-slate-900 mb-1">{inventory.length}</p>
-            <p className="text-sm font-medium text-slate-600">Total Products</p>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-smooth">
-            <div className="flex items-start justify-between mb-3">
-              <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center">
-                <TrendingDown className="w-6 h-6 text-orange-600" />
-              </div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...springyTransition, delay: 0.1 }}
+            className={`bg-white rounded-[2rem] border p-8 shadow-sm flex flex-col justify-between h-40 ${lowStock.length > 0 ? 'border-orange-200' : 'border-slate-200/60'}`}
+          >
+            <TrendingDown className={`w-6 h-6 mb-4 ${lowStock.length > 0 ? 'text-orange-500' : 'text-slate-400'}`} />
+            <div>
+              <p className="text-[2.5rem] leading-none font-black text-slate-900 mb-1">{lowStock.length}</p>
+              <p className="text-sm font-semibold text-slate-400 uppercase tracking-widest">Low Stock Items</p>
             </div>
-            <p className="text-3xl font-bold text-slate-900 mb-1">{lowStock.length}</p>
-            <p className="text-sm font-medium text-slate-600">Low Stock Items</p>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-smooth">
-            <div className="flex items-start justify-between mb-3">
-              <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
-                <Package className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-            <p className="text-3xl font-bold text-slate-900 mb-1">{totalStock}</p>
-            <p className="text-sm font-medium text-slate-600">Total Units</p>
           </motion.div>
         </div>
 
         {lowStock.length > 0 && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-5 mb-8 shadow-smooth">
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
-                <AlertTriangle className="w-5 h-5 text-orange-600" />
-              </div>
-              <div>
-                <p className="font-semibold text-orange-900 mb-1">Low Stock Alert</p>
-                <p className="text-sm text-orange-700">{lowStock.length} {lowStock.length === 1 ? 'item is' : 'items are'} running low on stock</p>
-              </div>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-orange-50 rounded-[1.5rem] border border-orange-100 p-6 mb-8 flex items-start gap-4"
+          >
+            <AlertTriangle className="w-6 h-6 text-orange-600 flex-shrink-0" />
+            <div>
+              <h3 className="font-bold text-orange-900 mb-1">Attention Required</h3>
+              <p className="text-orange-800 text-sm font-medium">You have {lowStock.length} items running low. Restocking is advised.</p>
             </div>
           </motion.div>
         )}
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-smooth-lg">
+        <div className="bg-white rounded-[2rem] border border-slate-200/60 overflow-hidden shadow-sm">
           {loading ? (
-            <div className="p-16 text-center">
-              <div className="w-12 h-12 border-4 border-slate-200 border-t-orange-600 rounded-full animate-spin mx-auto mb-4" />
-              <p className="text-slate-600">Loading inventory...</p>
-            </div>
-          ) : inventory.length === 0 ? (
-            <div className="p-16 text-center">
-              <Package className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-              <p className="text-slate-600">No products found</p>
-            </div>
+             <div className="py-20 text-center">
+             <Loader2 className="w-8 h-8 text-slate-300 animate-spin mx-auto" />
+           </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Product</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Category</th>
-                    <th className="px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Stock</th>
-                    <th className="px-6 py-4 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Status</th>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100">
+                    <th className="px-6 py-5 text-left font-bold text-slate-400 uppercase tracking-widest text-xs">Product</th>
+                    <th className="px-6 py-5 text-left font-bold text-slate-400 uppercase tracking-widest text-xs">Category</th>
+                    <th className="px-6 py-5 text-right font-bold text-slate-400 uppercase tracking-widest text-xs">Stock Level</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200">
+                <tbody className="divide-y divide-slate-50">
                   {inventory.map((item, idx) => (
-                    <motion.tr key={item.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.02 }} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4 text-sm font-medium text-slate-900">{item.name}</td>
-                      <td className="px-6 py-4 text-sm text-slate-600">{item.category}</td>
-                      <td className="px-6 py-4 text-sm text-right font-semibold text-slate-900">{item.stock_quantity} {item.unit}</td>
-                      <td className="px-6 py-4 text-right">
-                        {item.stock_quantity === 0 ? (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">Out of Stock</span>
-                        ) : item.stock_quantity < 5 ? (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">Critical</span>
-                        ) : item.stock_quantity < 10 ? (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-800">Low</span>
-                        ) : (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">Good</span>
-                        )}
+                    <motion.tr
+                      key={item.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.02 }}
+                      className="hover:bg-slate-50/50 transition-colors"
+                    >
+                      <td className="px-6 py-5 font-bold text-slate-900">{item.name}</td>
+                      <td className="px-6 py-5 font-semibold text-slate-500">{item.category}</td>
+                      <td className="px-6 py-5 text-right">
+                        <div className="flex items-center justify-end gap-3">
+                          <span className={`font-black text-lg ${item.stock_quantity < 10 ? 'text-orange-500' : 'text-slate-900'}`}>
+                            {item.stock_quantity}
+                          </span>
+                          {item.stock_quantity < 10 && (
+                            <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                          )}
+                        </div>
                       </td>
                     </motion.tr>
                   ))}
@@ -148,7 +148,7 @@ export default function InventoryPage() {
               </table>
             </div>
           )}
-        </motion.div>
+        </div>
       </main>
     </div>
   );
