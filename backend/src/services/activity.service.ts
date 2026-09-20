@@ -10,7 +10,8 @@ export type EventType =
   | 'inventory_updated'
   | 'confirmation_sent'
   | 'workflow_failed'
-  | 'clarification_needed';
+  | 'clarification_needed'
+  | 'low_stock_alert';
 
 export async function logActivity(
   storeId: string,
