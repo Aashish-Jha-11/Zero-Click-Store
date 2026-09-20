@@ -16,7 +16,8 @@ router.get('/', authMiddleware, async (req, res, next) => {
 
 router.get('/:id', authMiddleware, async (req, res, next) => {
   try {
-    const order = await getOrderById(req.params.id);
+    const orderId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const order = await getOrderById(orderId);
     res.json({ success: true, order });
   } catch (err) {
     next(err);
