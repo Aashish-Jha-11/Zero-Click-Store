@@ -11,6 +11,41 @@ import { getAllProducts } from '../services/product.service.js';
  * rather than killing the end-to-end loop.
  */
 
+/* Devanagari digits ०-९, emitted by hi-IN dictation. */
+const DEVANAGARI_DIGITS = '\u0966\u0967\u0968\u0969\u096A\u096B\u096C\u096D\u096E\u096F';
+
+/* Common catalogue words as hi-IN dictation returns them. The LLM path copes
+   with Devanagari unaided; this keeps the fallback usable in the same breath. */
+const DEVANAGARI_TERMS: Record<string, string> = {
+  'मैगी': 'maggi', 'मेगी': 'maggi',
+  'दूध': 'milk', 'अमूल': 'amul', 'मिल्क': 'milk',
+  'ब्रेड': 'bread', 'पाव': 'bread',
+  'मक्खन': 'butter', 'बटर': 'butter',
+  'बिस्कुट': 'biscuits', 'पारले': 'parle',
+  'आटा': 'atta', 'चीनी': 'sugar', 'नमक': 'salt',
+  'तेल': 'oil', 'चावल': 'rice', 'साबुन': 'soap',
+  'चिप्स': 'lays', 'कोक': 'coca-cola', 'ठंडा': 'beverages',
+  'टूथपेस्ट': 'toothpaste', 'सर्फ': 'surf', 'डिटर्जेंट': 'detergent',
+  'एक': 'ek', 'दो': 'do', 'तीन': 'teen', 'चार': 'char', 'पांच': 'paanch',
+  'पाँच': 'paanch', 'छह': 'chhe', 'सात': 'saat', 'आठ': 'aath',
+  'नौ': 'nau', 'दस': 'das',
+  'भैया': '', 'भाई': '', 'मुझे': '', 'चाहिए': '', 'और': 'aur',
+  'दे': '', 'दो न': '', 'भेज': '', 'देना': '', 'पैकेट': '', 'किलो': 'kg',
+};
+
+/** Normalise hi-IN dictation into the Latin forms the matcher already knows. */
+function transliterate(text: string): string {
+  let out = text;
+  for (let i = 0; i < 10; i++) {
+    out = out.replaceAll(DEVANAGARI_DIGITS[i], String(i));
+  }
+  // Longest first so "दो न" cannot be eaten by "दो".
+  for (const key of Object.keys(DEVANAGARI_TERMS).sort((a, b) => b.length - a.length)) {
+    out = out.replaceAll(key, ` ${DEVANAGARI_TERMS[key]} `);
+  }
+  return out.replace(/\s+/g, ' ').trim();
+}
+
 const NUMBER_WORDS: Record<string, number> = {
   // English
   one: 1, two: 2, three: 3, four: 4, five: 5,
@@ -39,7 +74,7 @@ const UNIT_WORDS = ['kg', 'kgs', 'kilo', 'kilos', 'g', 'gram', 'grams', 'l', 'lt
 const SEPARATOR = /\s*(?:,|\band\b|\baur\b|\bor\b|\bplus\b|\+|&|;|\/)\s*/gi;
 
 function normalize(text: string): string {
-  return text
+  return transliterate(text)
     .toLowerCase()
     .replace(/[."'!?|]/g, ' ')
     .replace(/\s+/g, ' ')
