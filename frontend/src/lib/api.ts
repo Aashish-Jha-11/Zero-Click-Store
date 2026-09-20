@@ -1,4 +1,21 @@
+import { supabase } from './supabase';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+
+/**
+ * Every request carries the caller's token so the backend can resolve *their*
+ * store. Without it all users collapse onto one shared store.
+ * Signed-out visitors simply get the read-only demo store.
+ */
+async function authHeaders(extra: Record<string, string> = {}): Promise<Record<string, string>> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    return token ? { ...extra, Authorization: `Bearer ${token}` } : extra;
+  } catch {
+    return extra;
+  }
+}
 
 export interface AgentResponse {
   success: boolean;
@@ -40,7 +57,7 @@ export interface LowStockAlert {
 export async function runAgent(message: string): Promise<AgentResponse> {
   const res = await fetch(`${API_BASE}/api/agent/run`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ message }),
   });
 
@@ -53,13 +70,13 @@ export async function runAgent(message: string): Promise<AgentResponse> {
 }
 
 export async function getOrders() {
-  const res = await fetch(`${API_BASE}/api/orders`);
+  const res = await fetch(`${API_BASE}/api/orders`, { headers: await authHeaders() });
   if (!res.ok) throw new Error('Failed to fetch orders');
   return res.json();
 }
 
 export async function getInventory() {
-  const res = await fetch(`${API_BASE}/api/inventory`);
+  const res = await fetch(`${API_BASE}/api/inventory`, { headers: await authHeaders() });
   if (!res.ok) throw new Error('Failed to fetch inventory');
   return res.json();
 }
@@ -69,13 +86,13 @@ export async function getLowStockAlerts(): Promise<{
   threshold: number;
   alerts: LowStockAlert[];
 }> {
-  const res = await fetch(`${API_BASE}/api/inventory/alerts`);
+  const res = await fetch(`${API_BASE}/api/inventory/alerts`, { headers: await authHeaders() });
   if (!res.ok) throw new Error('Failed to fetch alerts');
   return res.json();
 }
 
 export async function getActivity() {
-  const res = await fetch(`${API_BASE}/api/activity`);
+  const res = await fetch(`${API_BASE}/api/activity`, { headers: await authHeaders() });
   if (!res.ok) throw new Error('Failed to fetch activity');
   return res.json();
 }
@@ -109,7 +126,7 @@ async function json<T>(res: Response): Promise<T> {
 export async function createProduct(input: ProductInput) {
   const res = await fetch(`${API_BASE}/api/inventory`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(input),
   });
   return json<{ success: true; product: Product }>(res);
@@ -118,14 +135,17 @@ export async function createProduct(input: ProductInput) {
 export async function updateProduct(id: string, patch: Partial<ProductInput>) {
   const res = await fetch(`${API_BASE}/api/inventory/${id}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(patch),
   });
   return json<{ success: true; product: Product }>(res);
 }
 
 export async function deleteProduct(id: string) {
-  const res = await fetch(`${API_BASE}/api/inventory/${id}`, { method: 'DELETE' });
+  const res = await fetch(`${API_BASE}/api/inventory/${id}`, {
+    method: 'DELETE',
+    headers: await authHeaders(),
+  });
   return json<{ success: true; product: { id: string; name: string } }>(res);
 }
 
