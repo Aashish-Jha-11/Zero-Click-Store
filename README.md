@@ -44,7 +44,7 @@ DukaanPilot:
      │       │
      ▼       ▼
 ┌─────────┐ ┌──────────────┐
-│Supabase │ │Claude/Omni   │
+│Supabase │ │  LLM provider │
 │PostgreSQL│ │Router        │
 │Auth, RLS │ │Reasoning AI  │
 └─────────┘ └──────────────┘
@@ -56,7 +56,7 @@ DukaanPilot:
 
 - Node.js 18+
 - Supabase account (free tier works)
-- OmniRouter API key (for Claude access)
+- One LLM API key: Groq (free, recommended), Cerebras, OpenAI, OpenRouter or Gemini
 
 ### 1. Database Setup
 
@@ -84,7 +84,7 @@ cd backend
 # Verify these are present:
 # - SUPABASE_URL
 # - SUPABASE_SECRET_KEY
-# - OMNIROUTER_API_KEY
+# - GROQ_API_KEY  (or CEREBRAS_API_KEY / OPENAI_API_KEY / OPENROUTER_API_KEY / GEMINI_API_KEY)
 
 npm install
 npm run dev
@@ -301,7 +301,7 @@ cd backend
 # - PORT=3001
 # - SUPABASE_URL
 # - SUPABASE_SECRET_KEY
-# - OMNIROUTER_API_KEY
+# - GROQ_API_KEY  (or CEREBRAS_API_KEY / OPENAI_API_KEY / OPENROUTER_API_KEY / GEMINI_API_KEY)
 ```
 
 Update CORS in `backend/src/app.ts` to allow your frontend domain.
@@ -376,8 +376,8 @@ Update CORS in `backend/src/app.ts` to allow your frontend domain.
 - Test Supabase connection from backend
 
 **LLM not responding:**
-- Verify `OMNIROUTER_API_KEY` is set
-- Check OmniRouter API quota/limits
+- Verify an LLM key is set: `curl localhost:3001/api/health` → `llmConfigured`
+- Check the provider's rate limits; the deterministic parser takes over automatically
 - Look for errors in backend console
 
 ## 📝 License
@@ -392,5 +392,5 @@ Built for Hackathon Track 1: Zero-Click Store Operator
 - Next.js 15 + React
 - Node.js + Express
 - Supabase (PostgreSQL + Auth)
-- Claude via OmniRouter
+- Groq (`openai/gpt-oss-120b`) by default, swappable via env
 - Tailwind CSS + Framer Motion
