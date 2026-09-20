@@ -250,7 +250,7 @@ export default function ShutterHero({ videoSrc, webmSrc, poster, children }: Shu
               // playsInline is mandatory: iOS otherwise forces fullscreen.
               muted
               playsInline
-              preload="metadata"
+              preload="auto"
               poster={poster}
             >
               {webmSrc && <source src={webmSrc} type="video/webm" />}
@@ -277,15 +277,18 @@ export default function ShutterHero({ videoSrc, webmSrc, poster, children }: Shu
         </motion.div>
 
         <motion.div
-          className="absolute inset-x-0 bottom-8 flex flex-col items-center gap-2"
+          className="absolute inset-x-0 bottom-10 flex flex-col items-center gap-3"
           style={{ opacity: hintOpacity }}
         >
-          <span className="text-[11px] uppercase tracking-[0.22em] text-white/55">Scroll to open</span>
           <motion.div
-            animate={{ y: [0, 7, 0] }}
-            transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+            animate={{ y: [0, 8, 0] }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+            className="flex flex-col items-center gap-2.5"
           >
-            <ChevronDown className="h-5 w-5 text-white/55" />
+            <span className="rounded-full bg-white/12 px-5 py-2.5 text-[0.8125rem] font-semibold tracking-wide text-white backdrop-blur-sm ring-1 ring-white/25">
+              Scroll down to open the shop
+            </span>
+            <ChevronDown className="h-6 w-6 text-white/80" strokeWidth={2.4} />
           </motion.div>
         </motion.div>
       </motion.div>
