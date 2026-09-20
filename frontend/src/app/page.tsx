@@ -35,11 +35,37 @@ export default function HomePage() {
   const [result, setResult] = useState<AgentResponse | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) fetchProfile(session.user.id);
-      else setAuthLoading(false);
-    });
+    // Safety net: if Supabase's redirect allow-list rejects our redirectTo it
+    // silently falls back to the Site URL, dropping the user on "/" with the
+    // code still in the query. Handle it here so sign-in completes anyway.
+    const url = new URL(window.location.href);
+    const strayCode = url.searchParams.get('code');
+
+    if (strayCode) {
+      supabase.auth
+        .exchangeCodeForSession(strayCode)
+        .then(({ data, error }) => {
+          if (error) throw error;
+          setSession(data.session);
+          if (data.session) fetchProfile(data.session.user.id);
+          else setAuthLoading(false);
+        })
+        .catch((e) => {
+          console.error('[auth] stray code exchange failed:', e?.message);
+          setAuthLoading(false);
+        })
+        .finally(() => {
+          // Strip the code so a refresh cannot replay it.
+          url.searchParams.delete('code');
+          window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+        });
+    } else {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setSession(session);
+        if (session) fetchProfile(session.user.id);
+        else setAuthLoading(false);
+      });
+    }
 
     const {
       data: { subscription },
