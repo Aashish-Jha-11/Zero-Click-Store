@@ -1,12 +1,11 @@
 'use client';
 
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import {
   motion,
-  useScroll,
+  useMotionValue,
   useTransform,
   useReducedMotion,
-  useMotionValueEvent,
   type MotionValue,
 } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
@@ -194,91 +193,91 @@ export default function ShutterHero({ videoSrc, webmSrc, poster, children }: Shu
   const [videoReady, setVideoReady] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
 
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ['start start', 'end end'],
-  });
+  // Progress is computed from the section's own rect rather than from a
+  // library measurement, so there is nothing to mis-measure or go stale.
+  const progress = useMotionValue(0);
 
-  const shutterScaleY = useTransform(scrollYProgress, SHUTTER_LIFT, [1, 0]);
-  const interiorOpacity = useTransform(scrollYProgress, INTERIOR_FADE, [0, 1]);
-  const cameraScale = useTransform(scrollYProgress, CAMERA_PUSH, [1, 1.38]);
-  const heroOpacity = useTransform(scrollYProgress, HANDOFF, [1, 0]);
-  const titleOpacity = useTransform(scrollYProgress, [0, 0.18], [1, 0]);
-  const hintOpacity = useTransform(scrollYProgress, [0, 0.12], [1, 0]);
-
-  // Video mode: scrub currentTime against scroll instead of playing.
-  // Seeks are coalesced into one per animation frame — setting currentTime on
-  // every scroll event makes the browser drop seeks and the shutter stutters.
-  const pendingRef = useRef<number | null>(null);
-  const rafRef = useRef<number | null>(null);
-
-  const seekTo = useCallback((progress: number) => {
-    const v = videoRef.current;
-    if (!v) return;
-    const d = v.duration;
-    if (!Number.isFinite(d) || d === 0) return;
-
-    pendingRef.current = Math.min(d, Math.max(0, progress * d));
-    if (rafRef.current !== null) return;
-
-    rafRef.current = requestAnimationFrame(() => {
-      rafRef.current = null;
-      const target = pendingRef.current;
-      const vid = videoRef.current;
-      if (vid && target !== null) {
-        try {
-          vid.currentTime = target;
-        } catch {
-          /* seeking before the range is buffered — the next frame retries */
-        }
-      }
-    });
-  }, []);
-
-  useMotionValueEvent(scrollYProgress, 'change', (p) => {
-    if (!videoReady || reduced) return;
-    seekTo(p);
-  });
+  const shutterScaleY = useTransform(progress, SHUTTER_LIFT, [1, 0]);
+  const interiorOpacity = useTransform(progress, INTERIOR_FADE, [0, 1]);
+  const cameraScale = useTransform(progress, CAMERA_PUSH, [1, 1.38]);
+  const heroOpacity = useTransform(progress, HANDOFF, [1, 0]);
+  const titleOpacity = useTransform(progress, [0, 0.18], [1, 0]);
+  const hintOpacity = useTransform(progress, [0, 0.12], [1, 0]);
 
   useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
+    const section = ref.current;
+    if (!section || reduced) return;
 
-    const markReady = () => {
-      setVideoReady(true);
-      // Sync to wherever the page already is, so a reload mid-page is correct.
-      seekTo(scrollYProgress.get());
+    let raf: number | null = null;
+
+    const apply = () => {
+      raf = null;
+      const rect = section.getBoundingClientRect();
+      const scrollable = rect.height - window.innerHeight;
+      const p = scrollable > 0 ? Math.min(1, Math.max(0, -rect.top / scrollable)) : 0;
+
+      progress.set(p);
+
+      const v = videoRef.current;
+      // readyState >= 1 means metadata (and therefore duration) is available.
+      if (v && v.readyState >= 1) {
+        const d = v.duration;
+        if (Number.isFinite(d) && d > 0) {
+          const t = Math.min(d - 0.001, Math.max(0, p * d));
+          if (Math.abs(v.currentTime - t) > 0.008) {
+            try {
+              v.currentTime = t;
+            } catch {
+              /* range not buffered yet; the next frame retries */
+            }
+          }
+        }
+      }
     };
 
-    // Metadata is often already present by the time this effect runs (cache,
-    // fast network). Waiting only on the event means readiness never fires and
-    // scrubbing silently never starts — leaving just the CSS camera push.
-    if (v.readyState >= 1) markReady();
+    const schedule = () => {
+      if (raf === null) raf = requestAnimationFrame(apply);
+    };
 
-    v.addEventListener('loadedmetadata', markReady);
-    v.addEventListener('loadeddata', markReady);
-    v.addEventListener('canplay', markReady);
-    // Safari sometimes needs an explicit nudge to fetch with preload=auto.
-    if (v.readyState === 0) v.load();
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
 
+    const v = videoRef.current;
+    const onReady = () => {
+      setVideoReady(true);
+      schedule();
+    };
     const onError = () => setVideoFailed(true);
-    v.addEventListener('error', onError);
 
-    // If it is still not scrubbable after a few seconds, show the CSS shutter.
-    // A frozen first frame reads as a broken page.
-    const watchdog = setTimeout(() => {
+    if (v) {
+      if (v.readyState >= 1) onReady();
+      v.addEventListener('loadedmetadata', onReady);
+      v.addEventListener('loadeddata', onReady);
+      v.addEventListener('canplay', onReady);
+      v.addEventListener('error', onError);
+      if (v.readyState === 0) v.load();
+    }
+
+    // A frozen first frame reads as a broken page — fall back to the CSS shutter.
+    const watchdog = window.setTimeout(() => {
       if ((videoRef.current?.readyState ?? 0) < 1) setVideoFailed(true);
-    }, 6000);
+    }, 7000);
+
+    apply();
 
     return () => {
-      v.removeEventListener('loadedmetadata', markReady);
-      v.removeEventListener('loadeddata', markReady);
-      v.removeEventListener('canplay', markReady);
-      v.removeEventListener('error', onError);
-      clearTimeout(watchdog);
-      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+      if (v) {
+        v.removeEventListener('loadedmetadata', onReady);
+        v.removeEventListener('loadeddata', onReady);
+        v.removeEventListener('canplay', onReady);
+        v.removeEventListener('error', onError);
+      }
+      window.clearTimeout(watchdog);
+      if (raf !== null) cancelAnimationFrame(raf);
     };
-  }, [videoSrc, seekTo, scrollYProgress]);
+  }, [progress, reduced, videoSrc]);
 
   const useVideo = Boolean(videoSrc) && !videoFailed;
 
